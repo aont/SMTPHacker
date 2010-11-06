@@ -1,57 +1,47 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.IO.Ports;
-using System.Text.RegularExpressions;
-using System.Threading;
+using System;
+using System.IO;
 
-namespace MassMeasurement
+namespace SMTPHacker
 {
     class Program
     {
         static void Main(string[] args)
         {
-            SerialPort serial = new SerialPort("COM3", 9600, Parity.None, 8, StopBits.One);
-            serial.ReadTimeout = 10000;
-            serial.Open();
-
-
-
-            char[] data = new char[serial.BaudRate];
-            serial.WriteLine("IP");
-            serial.Read(data, 0, serial.BaudRate);
-
-            Regex regex = new Regex("MODE:	Weight\r\n(-?[0-9]+[.][0-9]+)[ ]+g([?]?)\r\nOK!", RegexOptions.Multiline);
-
-
-
-            do
+            SMTPSettings settings;
+            FileInfo defaultsettings = new FileInfo("settings.cfg");
+            if (defaultsettings.Exists)
             {
-                Thread.Sleep(100);
-                serial.WriteLine("IP");
-                serial.Read(data, 0, serial.BaudRate);
+                settings = SMTPSettings.Load(defaultsettings.FullName);
 
+                var smtplistener = new SMTPListener(settings);
+                smtplistener.Start();
 
-                var str = new string(data);
-                var match = regex.Match(str);
+                Console.WriteLine("Started...");
+                Console.ReadKey();
 
-                if (match.Success)
+                smtplistener.Dispose();
+            }
+            else
+            {
+                Console.WriteLine("Created settings.cfg.");
+                Console.WriteLine("Edit this file to customize.");
+                settings = new SMTPSettings()
                 {
-                    if (match.Groups[2].Value == "")
-                        Console.WriteLine("{0} g", match.Groups[1].Value);
-                    else
-                        Console.WriteLine("{0} g?", match.Groups[1].Value);
-                }
-                else
-                    continue;
-                //Console.WriteLine(str);
-            } while (Console.ReadKey(true).KeyChar != 'x');
+                    LocalPort = 25,
+                    Recipient ="recipients@foo.com",
+                    RemoteAddress = "smtp.com",
+                    RemotePort = 25,
+                    Sender = "sender@foo.com"
+                };
+                settings.Save(defaultsettings.FullName);
+                return;
+            }
 
-            serial.Close();
-            serial.Dispose();
-
-            //Console.ReadKey();
         }
     }
+
+
+
+
+
 }
